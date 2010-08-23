@@ -9,12 +9,22 @@ function sub($i, $ch) {
 
 $ch = thread_message_queue_create();
 for ($i = 0; $i < 10; $i++) {
-    thread_create('sub', $i, $ch);
+    $rs[] = thread_create('sub', $i, $ch);
 }
 
 $i = 0;
-for (;;) {
+for ($i = 0; $i < 20;$i++) {
     // send $i to $ch
     thread_message_queue_post($ch, $i++);
     sleep(1);
 }
+echo "Done. Now to join threads.\n";
+die();
+
+
+foreach($rs as $r) {
+	echo "Joining: $r\n";
+    thread_join($r);
+}
+
+echo "Done joining threads!";
