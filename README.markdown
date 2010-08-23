@@ -4,6 +4,7 @@ PHP User-land threading support
 Contributers
 ------------
 [Moriyoshi Koizumi](http://github.com/moriyoshi) Inital code for GNU Pth and Linux
+
 [Alec Gorge](http://github.com/alecgorge) Convert code to Pthreads so it can be used with Pthreads and Pthreads-win32
 
 
