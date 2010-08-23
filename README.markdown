@@ -36,7 +36,11 @@ trunk build on both Linux and Windows)::
 		sleep(1);
 	}
 	?>
-  
+
+Samples
+-------
+Samples can be found at (note that 2 & 3 are broken right now, fixes wanted):  [http://github.com/alecgorge/php_threading/tree/master/source/samples/](http://github.com/alecgorge/php_threading/tree/master/source/samples/)
+
 Function list (these are your api docs presently)
 -------------------------------------------------
 	Array
