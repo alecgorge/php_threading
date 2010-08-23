@@ -1,51 +1,59 @@
 PHP User-land threading support
 ===============================
 
+Contributers
+------------
+[Moriyoshi Koizumi](http://github.com/moriyoshi) Inital code for GNU Pth and Linux
+[Alec Gorge](http://github.com/alecgorge) Convert code to Pthreads so it can be used with Pthreads and Pthreads-win32
+
+
+Summary
+-------
 This adds a basic user-land threading support to the PHP scripting language. (both Windows and Linux).
 
 A typical example (see samples directory for other ones that [should] work with the latest
 trunk build on both Linux and Windows)::
 
-<?php
-function sub($i, $ch) {
-    for (;;) {
-        // receive the message from $ch
-        $a = thread_message_queue_poll($ch);
-        printf("%d: %s\n", $i, $a);
-    }
-}
+	<?php
+	function sub($i, $ch) {
+		for (;;) {
+			// receive the message from $ch
+			$a = thread_message_queue_poll($ch);
+			printf("%d: %s\n", $i, $a);
+		}
+	}
 
-$ch = thread_message_queue_create();
-for ($i = 0; $i < 10; $i++) {
-    thread_create('sub', $i, $ch);
-}
+	$ch = thread_message_queue_create();
+	for ($i = 0; $i < 10; $i++) {
+		thread_create('sub', $i, $ch);
+	}
 
-$i = 0;
-for (;;) {
-    // send $i to $ch
-    thread_message_queue_post($ch, $i++);
-    sleep(1);
-}
-?>
+	$i = 0;
+	for (;;) {
+		// send $i to $ch
+		thread_message_queue_post($ch, $i++);
+		sleep(1);
+	}
+	?>
   
 Function list (these are your api docs presently)
 -------------------------------------------------
-Array
-(
-    [0] => thread_create
-    [1] => thread_suspend
-    [2] => thread_resume
-    [3] => thread_join
-    [4] => thread_mutex_create
-    [5] => thread_mutex_acquire
-    [6] => thread_mutex_release
-    [7] => thread_message_queue_create
-    [8] => thread_message_queue_post
-    [9] => thread_message_queue_poll
-    [10] => thread_message_slot_create
-    [11] => thread_message_slot_post
-    [12] => thread_message_slot_subscribe
-)
+	Array
+	(
+		[0] => thread_create
+		[1] => thread_suspend
+		[2] => thread_resume
+		[3] => thread_join
+		[4] => thread_mutex_create
+		[5] => thread_mutex_acquire
+		[6] => thread_mutex_release
+		[7] => thread_message_queue_create
+		[8] => thread_message_queue_post
+		[9] => thread_message_queue_poll
+		[10] => thread_message_slot_create
+		[11] => thread_message_slot_post
+		[12] => thread_message_slot_subscribe
+	)
 
 Why userland?
 -------------
