@@ -46,6 +46,7 @@ PHP_FUNCTION(thread_create);
 PHP_FUNCTION(thread_suspend);
 PHP_FUNCTION(thread_resume);
 PHP_FUNCTION(thread_join);
+PHP_FUNCTION(thread_kill);
 PHP_FUNCTION(thread_mutex_create);
 PHP_FUNCTION(thread_mutex_acquire);
 PHP_FUNCTION(thread_mutex_release);

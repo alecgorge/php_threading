@@ -31,9 +31,9 @@ thread_message_queue_stop($ch);
 // after threads recieve the stop message, they break out of the for loop and sleep
 echo "Done sending messages. Threads are sleeping for 2 seconds.\n";
 
-for ($i = 0; $i < 10;$i++) {
+foreach ($rs as $val) {
 	// thread_join waits for the the thread to finish before continuing
-	thread_join($rs[$i]);
+	thread_join($val);
 }
 
 echo "All threads are complete.";

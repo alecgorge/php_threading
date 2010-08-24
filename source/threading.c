@@ -169,6 +169,7 @@ zend_function_entry threading_functions[] = {
 	PHP_FE(thread_suspend,	NULL)
 	PHP_FE(thread_resume,	NULL)
 	PHP_FE(thread_join,	NULL)
+	PHP_FE(thread_kill,	NULL)
 	PHP_FE(thread_mutex_create,	NULL)
 	PHP_FE(thread_mutex_acquire,	NULL)
 	PHP_FE(thread_mutex_release,	NULL)
@@ -256,6 +257,30 @@ static int php_thread_entry_join(php_thread_entry_t *entry,
 	php_thread_entry_dispose(&entry TSRMLS_CC);
 	THR_DEBUG(("returning in php_thread_entry_join\n"));
 	return SUCCESS;
+}
+/* }}} */
+
+/* {{{ php_thread_entry_join() */
+static int php_thread_entry_kill(php_thread_entry_t *entry TSRMLS_DC)
+{
+	int result;
+	if (entry == PHP_THREAD_SELF) {
+		return FAILURE;
+	}
+	THR_DEBUG(("calling php_thread_entry_addref in php_thread_entry_kill\n"));
+	php_thread_entry_addref(entry);
+	THR_DEBUG(("calling pthread_cancel in php_thread_entry_kill\n"));
+	result = pthread_cancel(entry->t);
+	if(result == SUCCESS) {
+		THR_DEBUG(("calling php_thread_entry_dispose in php_thread_entry_kill\n"));
+		php_thread_entry_dispose(&entry TSRMLS_CC);
+		THR_DEBUG(("returning SUCCESS in php_thread_entry_kill\n"));
+		return SUCCESS;
+	}
+	else {
+		THR_DEBUG(("returning result in php_thread_entry_kill\n"));
+		return result;
+	}
 }
 /* }}} */
 
@@ -388,26 +413,18 @@ php_thread_mutex_acquire(php_thread_mutex_t *mtx, double timeout TSRMLS_DC)
 	struct timespec future;
 
 	/* Getting system time in seconds */
-#ifdef PHP_WIN32
-	SYSTEMTIME st;
-#else
-	struct timespec st;
-#endif
+	struct timeval st;
 
-#ifdef PHP_WIN32
-	GetSystemTime(&st);
-	future.tv_sec = st.wSecond + (long)timeout;
-	future.tv_nsec = st.wMilliseconds + (long)(timeout - (double)(long)timeout);
-#else
 	gettimeofday(&st, NULL);
-	future.tv_sec = st.tv_sec + (long)timeout;
-	future.tv_nsec = st.tv_nsec + (long)(timeout - (double)(long)timeout);
-#endif
+	future.tv_sec = st.tv_sec + (long)floor(timeout/1000.0);
+	future.tv_nsec = (st.tv_usec * 1000) + (long)(1000000000.0* (timeout/1000.0 - floor(timeout/1000.0))); //(long)(timeout - floor(timeout)));
 
 	if (timeout >= 0) {
 		retval = pthread_mutex_timedlock(&mtx->m, &future);
 	}
-	retval = pthread_mutex_lock(&mtx->m);
+	else {
+		retval = pthread_mutex_lock(&mtx->m);
+	}
 
 	if (!retval) {
 		mtx->owner = PHP_THREAD_SELF;
@@ -510,7 +527,7 @@ static int php_thread_message_queue_post(php_thread_message_queue_t *queue, zval
 }
 /* }}} */
 
-/* {{{ php_thread_message_queue_poll */
+/* {{{ php_thread_message_queue_stop */
 static int php_thread_message_queue_stop(php_thread_message_queue_t *queue TSRMLS_DC)
 {
 	//php_thread_message_t *msg;
@@ -518,70 +535,42 @@ static int php_thread_message_queue_stop(php_thread_message_queue_t *queue TSRML
 	THR_DEBUG(("--%d\n", pthread_mutex_unlock(&queue->mtx)));
 	php_thread_do_exit = 1;
 	return (pthread_cond_broadcast(&queue->cond) == 0 ? SUCCESS : FAILURE);
-	/*THR_DEBUG(("calling pthread_mutex_lock(&queue->mtx) in php_thread_message_queue_poll\n"));
-	if (pthread_mutex_lock(&queue->mtx) != 0) {
-		return FAILURE;
-	}
-
-	THR_DEBUG(("waiting to be first in the queue\n"));
-	while (!queue->first) {
-		THR_DEBUG(("pthread_cond_wait(&queue->cond, &queue->mtx) in php_thread_message_queue_poll\n"));
-		if (pthread_cond_wait(&queue->cond, &queue->mtx)  != 0) {
-			bail_if_fail(pthread_mutex_unlock(&queue->mtx));
-			return FAILURE;
-		}
-	}
-	THR_DEBUG(("done waiting\n"));
-
-	msg = queue->first;
-	if (msg->prev) {
-		msg->prev->next = msg->next;
-	} else {
-		queue->first = msg->next;
-	}
-	if (msg->next) {
-		msg->next->prev = msg->prev;
-	} else {
-		queue->last = msg->prev;
-	}
-
-	if (SUCCESS != php_thread_convert_object_ref(retval, msg->value,
-			msg->thd->tsrm_ls TSRMLS_CC)) {
-		ALLOC_INIT_ZVAL(*retval);
-	}
-
-	bail_if_fail(pthread_mutex_lock(&msg->thd->gc_mtx));
-	msg->next = NULL;
-	msg->prev = msg->thd->garbage;
-	msg->thd->garbage = msg;
-	bail_if_fail(pthread_mutex_unlock(&msg->thd->gc_mtx));
-
-	bail_if_fail(pthread_mutex_unlock(&queue->mtx));
-
-	pthread_kill(msg->thd->t, 31);*/
 }
 /* }}} */
 
 /* {{{ php_thread_message_queue_poll */
-static int php_thread_message_queue_poll(php_thread_message_queue_t *queue, zval **retval TSRMLS_DC)
+static int php_thread_message_queue_poll(php_thread_message_queue_t *queue, zval **retval, double timeout TSRMLS_DC)
 {
 	php_thread_message_t *msg;
 	zval *break_return_val;
+	int result;
 	char *string_contents = "PHP_THREAD_POLL_STOP";
+	struct timeval st;
+	struct timespec future;
 
-	/*THR_DEBUG(("php_thread_do_exit: %d\n", php_thread_do_exit));
-	if(php_thread_do_exit == 1) {
-		pthread_mutex_unlock(&queue->mtx);
-		pthread_kill(msg->thd->t, 31);
-		return SUCCESS;
-	}*/
-	THR_DEBUG(("calling pthread_mutex_lock(&queue->mtx) in php_thread_message_queue_poll\n"));
-	if (pthread_mutex_lock(&queue->mtx) != 0) {
-		return FAILURE;
+	if(timeout >= 0) {
+		/* Getting system time in seconds */
+		
+		gettimeofday(&st, NULL);
+		future.tv_sec = st.tv_sec + (long)floor(timeout/1000.0);
+		future.tv_nsec = (st.tv_usec * 1000) + (long)(1000000000.0* (timeout/1000.0 - floor(timeout/1000.0))); //(long)(timeout - floor(timeout)));
+		THR_DEBUG(("----%f %f\n", (long)floor(timeout/1000.0), (long)(1000000000.0 * (timeout/1000.0 - floor(timeout/1000.0)))));
+
+		/*THR_DEBUG(("php_thread_do_exit: %d\n", php_thread_do_exit));
+		if(php_thread_do_exit == 1) {
+			pthread_mutex_unlock(&queue->mtx);
+			pthread_kill(msg->thd->t, 31);
+			return SUCCESS;
+		}*/
+		THR_DEBUG(("calling pthread_mutex_lock(&queue->mtx) in php_thread_message_queue_poll\n"));
+		if (pthread_mutex_lock(&queue->mtx) != 0) {
+			return FAILURE;
+		}
 	}
 
 	THR_DEBUG(("waiting to be first in the queue\n"));
 	while (!queue->first) {
+
 		//THR_DEBUG(("php_thread_do_exit: %d\n", php_thread_do_exit));
 
 		if(php_thread_do_exit == 1) {
@@ -591,8 +580,23 @@ static int php_thread_message_queue_poll(php_thread_message_queue_t *queue, zval
 			*retval = break_return_val;
 			return SUCCESS;
 		}
-		THR_DEBUG(("pthread_cond_wait(&queue->cond, &queue->mtx) in php_thread_message_queue_poll\n"));
-		if (pthread_cond_wait(&queue->cond, &queue->mtx)  != 0) {
+
+		if (timeout >= 0) {
+			THR_DEBUG(("pthread_cond_timedwait(&queue->cond, &queue->mtx, &future) in php_thread_message_queue_poll\n"));
+			result = pthread_cond_timedwait(&queue->cond, &queue->mtx, &future);
+			THR_DEBUG(("result: %d, %d.%d %d.%d\n", result, future.tv_sec, future.tv_nsec, st.tv_sec, st.tv_usec));
+			if(result == ETIMEDOUT) {
+				bail_if_fail(pthread_mutex_unlock(&queue->mtx));
+				return ETIMEDOUT;
+			}
+			//Sleep(timeout);
+		}
+		else {
+			THR_DEBUG(("pthread_cond_wait(&queue->cond, &queue->mtx) in php_thread_message_queue_poll\n"));
+			result = pthread_cond_wait(&queue->cond, &queue->mtx);
+		}
+
+		if (result != 0 && result != ETIMEDOUT) {
 			bail_if_fail(pthread_mutex_unlock(&queue->mtx));
 			return FAILURE;
 		}
@@ -1517,6 +1521,34 @@ PHP_FUNCTION(thread_join)
 }
 /* }}} */
 
+/* {{{ proto mixed thread_kill(resource thread)
+   Kills a thread */
+PHP_FUNCTION(thread_kill)
+{
+	zval *zv;
+	php_thread_entry_t *entry;
+
+	if (FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &zv)) {
+		RETURN_FALSE;
+	}
+
+	ZEND_FETCH_RESOURCE(entry, php_thread_entry_t *, &zv, -1, "thread handle",
+			global_ctx.le_thread);
+
+	{
+		THR_DEBUG(("calling php_thread_entry_kill in thread_kill\n"));
+		if(php_thread_entry_kill(entry TSRMLS_CC) == SUCCESS) {
+			THR_DEBUG(("returning true in thread_kill\n"));
+			RETURN_TRUE;
+		}
+		else {
+			THR_DEBUG(("returning false in thread_kill\n"));
+			RETURN_FALSE;
+		}
+	}
+}
+/* }}} */
+
 /* {{{ proto resource thread_mutex_create()
    Creates a mutex */
 PHP_FUNCTION(thread_mutex_create)
@@ -1623,25 +1655,38 @@ PHP_FUNCTION(thread_message_queue_poll)
 	//int retval;
 	zval *zv;
 	php_thread_message_queue_t *queue;
+	double timeout = -1.0;
 	zval *tmp;
+	int return_status;
 
 	THR_DEBUG(("php_thread_do_exit: %d\n", php_thread_do_exit));
 	if(php_thread_do_exit == 1) {
-		RETURN_STRING("PHP_THREAD_POLL_STOP", FALSE);
+		RETURN_STRING("PHP_THREAD_POLL_TIMEOUT", FALSE);
 	}
 
-	if (FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &zv)) {
+	if (FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|d", &zv, &timeout)) {
 		RETURN_FALSE;
 	}
+	
+	THR_DEBUG(("timeout: %f\n", timeout));
 
 	ZEND_FETCH_RESOURCE(queue, php_thread_message_queue_t*, &zv, -1, "thread message queue",
 			global_ctx.le_msg_queue);
 
-	if (FAILURE == php_thread_message_queue_poll(queue, &tmp TSRMLS_CC)) {
+	THR_DEBUG(("timeout: %f\n\n", timeout));
+
+	if (FAILURE == (return_status = php_thread_message_queue_poll(queue, &tmp, timeout TSRMLS_CC))) {
 		RETURN_NULL();
 	} else {
-		*return_value = *tmp;
-		FREE_ZVAL(tmp);
+		if(return_status == ETIMEDOUT) {
+			THR_DEBUG(("returning string\n"));
+			RETURN_STRING("PHP_THREAD_POLL_TIMED_OUT", TRUE);
+		}
+		else {
+			THR_DEBUG(("returning ZVAL\n"));
+			*return_value = *tmp;
+			FREE_ZVAL(tmp);
+		}
 	}
 }
 /* }}} */
