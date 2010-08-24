@@ -1,9 +1,4 @@
 <?php
-sleep(5);
-if(!extension_loaded('threading')) {
-	dl('threading.' . PHP_SHLIB_SUFFIX);
-}
-
 function print_char ($char, $times) {
 	for($i = 0; $i < $times; $i++) {
 		echo $char;

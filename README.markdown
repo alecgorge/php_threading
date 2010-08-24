@@ -20,26 +20,21 @@ A typical example (see samples directory for other ones that [should] work with 
 trunk build on both Linux and Windows)::
 
 	<?php
-	function sub($i, $ch) {
-		for (;;) {
-			// receive the message from $ch
-			$a = thread_message_queue_poll($ch);
-			printf("%d: %s\n", $i, $a);
+	function print_char ($char, $times) {
+		for($i = 0; $i < $times; $i++) {
+			echo $char;
 		}
 	}
 
-	$ch = thread_message_queue_create();
-	for ($i = 0; $i < 10; $i++) {
-		thread_create('sub', $i, $ch);
-	}
+	echo "\nMASTER: starting threads\n";
 
-	$i = 0;
-	for (;;) {
-		// send $i to $ch
-		thread_message_queue_post($ch, $i++);
-		sleep(1);
-	}
+	thread_create('print_char', 'x', 2000, 50);
+	thread_create('print_char', 'y', 2000, 50);
+
+	echo "\nMASTER: done\n";
+
 	?>
+
 
 Samples
 -------
