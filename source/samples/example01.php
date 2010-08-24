@@ -1,4 +1,5 @@
 <?php
+sleep(5);
 if(!extension_loaded('threading')) {
 	dl('threading.' . PHP_SHLIB_SUFFIX);
 }

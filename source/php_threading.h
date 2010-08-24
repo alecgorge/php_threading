@@ -22,6 +22,9 @@
 #ifndef PHP_THREADING_H
 #define PHP_THREADING_H
 
+// if you define this debug messages will appear (mostly relating to thread polling)
+// #define PHP_THREADING_DEBUG
+
 extern zend_module_entry threading_module_entry;
 #define phpext_threading_ptr &threading_module_entry
 
@@ -49,6 +52,7 @@ PHP_FUNCTION(thread_mutex_release);
 PHP_FUNCTION(thread_message_queue_create);
 PHP_FUNCTION(thread_message_queue_post);
 PHP_FUNCTION(thread_message_queue_poll);
+PHP_FUNCTION(thread_message_queue_stop);
 PHP_FUNCTION(thread_message_slot_create);
 PHP_FUNCTION(thread_message_slot_post);
 PHP_FUNCTION(thread_message_slot_subscribe);
@@ -58,6 +62,13 @@ typedef struct _php_thread_entry_t php_thread_entry_t;
 #define PHP_THREAD_SELF (*(php_thread_entry_t**)(*tsrm_ls)[TSRM_UNSHUFFLE_RSRC_ID(global_ctx.tsrm_id)])
 
 #endif
+
+#ifdef PHP_THREADING_DEBUG
+#define THR_DEBUG(v) printf v; fflush(stdout);
+#else
+#define THR_DEBUG(v)
+#endif
+
 
 #endif	/* PHP_THREADING_H */
 

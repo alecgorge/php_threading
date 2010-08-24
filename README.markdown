@@ -1,11 +1,15 @@
 PHP User-land threading support
 ===============================
 
+Note about Windows
+------------------
+Don't forget to put deps/lib/pthreadVC2.dll in the same dir as your php.exe
+
 Contributers
 ------------
-[Moriyoshi Koizumi](http://github.com/moriyoshi) Inital code for GNU Pth and Linux
+[Moriyoshi Koizumi](http://github.com/moriyoshi): Inital code for GNU Pth and Linux
 
-[Alec Gorge](http://github.com/alecgorge) Convert code to Pthreads so it can be used with Pthreads and Pthreads-win32
+[Alec Gorge](http://github.com/alecgorge): Convert code to Pthreads so it can be used with Pthreads and Pthreads-win32 plus bug fixes that may or may not have been there in Moriyoshi's release.
 
 
 Summary
@@ -43,22 +47,20 @@ Samples can be found at (note that 2 & 3 are broken right now, fixes wanted):  [
 
 Function list (these are your api docs presently)
 -------------------------------------------------
-	Array
-	(
-		[0] => thread_create
-		[1] => thread_suspend
-		[2] => thread_resume
-		[3] => thread_join
-		[4] => thread_mutex_create
-		[5] => thread_mutex_acquire
-		[6] => thread_mutex_release
-		[7] => thread_message_queue_create
-		[8] => thread_message_queue_post
-		[9] => thread_message_queue_poll
-		[10] => thread_message_slot_create
-		[11] => thread_message_slot_post
-		[12] => thread_message_slot_subscribe
-	)
+	PHP_FUNCTION(thread_create);
+	PHP_FUNCTION(thread_suspend);
+	PHP_FUNCTION(thread_resume);
+	PHP_FUNCTION(thread_join);
+	PHP_FUNCTION(thread_mutex_create);
+	PHP_FUNCTION(thread_mutex_acquire);
+	PHP_FUNCTION(thread_mutex_release);
+	PHP_FUNCTION(thread_message_queue_create);
+	PHP_FUNCTION(thread_message_queue_post);
+	PHP_FUNCTION(thread_message_queue_poll);
+	PHP_FUNCTION(thread_message_queue_stop);
+	PHP_FUNCTION(thread_message_slot_create);
+	PHP_FUNCTION(thread_message_slot_post);
+	PHP_FUNCTION(thread_message_slot_subscribe);
 
 Why userland?
 -------------

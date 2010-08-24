@@ -210,6 +210,105 @@
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
+		<Configuration
+			Name="PHP Debug|Win32"
+			OutputDirectory="$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="2"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
+			UseOfMFC="2"
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				PreprocessorDefinitions="NDEBUG"
+				MkTypLibCompatible="true"
+				SuppressStartupBanner="true"
+				TargetEnvironment="1"
+				TypeLibraryName=".\Release/winbinder.tlb"
+				HeaderFileName=""
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalOptions="/D ZEND_DEBUG=0 /D &quot;PHP_EXPORTS&quot; /D &quot;COMPILE_DL_THREADS&quot; /D ZTS=1 /D &quot;ZEND_WIN32&quot; /D &quot;PHP_WIN32&quot; /D HAVE_THREADS=1 /D &quot;WIN32&quot; /D &quot;NDEBUG&quot; /D &quot;_WINDOWS&quot; /D &quot;_MBCS&quot; /D &quot;_USRDLL&quot; /D &quot;THREADS_EXPORTS&quot;"
+				Optimization="3"
+				InlineFunctionExpansion="1"
+				AdditionalIncludeDirectories="..\deps\include\win32;..\deps\include\;..\deps\include\main;..\deps\include\Zend;..\deps\include\TSRM;&quot;..\deps\include\pthreads-win32\&quot;;..\deps\include\ext\standard"
+				PreprocessorDefinitions="COMPILE_DL_THREADING;_USE_32BIT_TIME_T=1;ZTS=1;_WINDOWS;_RELEASE;ZEND_WIN32=1;PHP_WIN32=1;WIN32"
+				StringPooling="true"
+				ExceptionHandling="1"
+				RuntimeLibrary="2"
+				EnableFunctionLevelLinking="true"
+				PrecompiledHeaderFile=".\Release/php_threading.pch"
+				AssemblerListingLocation=".\PHP_DEBUG"
+				ObjectFile=".\PHP_DEBUG"
+				ProgramDataBaseFileName=".\PHP_DEBUG"
+				WarningLevel="3"
+				SuppressStartupBanner="true"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="NDEBUG"
+				Culture="1036"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalDependencies="..\deps\lib\php5ts.lib ..\deps\lib\pthreadVC2.lib"
+				ShowProgress="0"
+				OutputFile=".\PHP_DEBUG\php_threading.dll"
+				LinkIncremental="1"
+				SuppressStartupBanner="true"
+				AdditionalLibraryDirectories="..\deps\lib\"
+				GenerateDebugInformation="true"
+				ProgramDatabaseFile=".\PHP_DEBUG\php_threading.pdb"
+				RandomizedBaseAddress="1"
+				DataExecutionPrevention="0"
+				ImportLibrary=".\Release/php_threading.lib"
+				TargetMachine="1"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+				SuppressStartupBanner="true"
+				OutputFile=".\Release/php_threading.bsc"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
 	</Configurations>
 	<References>
 	</References>
