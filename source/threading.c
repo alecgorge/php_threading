@@ -43,6 +43,8 @@
 #include "php_ini.h"
 #include "ext/standard/info.h"
 #include "php_threading.h"
+#include "main/streams/php_stream_plain_wrapper.h"
+#include "php_network.h"
 #include "php_main.h"
 #include "main/php_network.h"
 
@@ -51,6 +53,18 @@
 #endif
 
 #define bail_if_fail(X) if ((X) != 0) zend_bailout()
+
+#ifdef PHP_THREADING_QUESTIONABLE_VARS
+php_stream_ops php_stream_socket_ops;
+PHPAPI php_stream_ops php_stream_socket_ops;
+//PHPAPI php_stream_ops php_stream_generic_socket_ops;
+//php_stream_ops php_stream_generic_socket_ops;
+
+PHPAPI php_stream_ops php_stream_stdio_ops;
+PHPAPI php_stream_wrapper php_plain_files_wrapper;
+php_stream_ops php_stream_stdio_ops;
+php_stream_wrapper php_plain_files_wrapper;
+#endif
 
 typedef struct _php_thread_message_t php_thread_message_t;
 
@@ -169,6 +183,7 @@ zend_function_entry threading_functions[] = {
 	PHP_FE(thread_suspend,	NULL)
 	PHP_FE(thread_resume,	NULL)
 	PHP_FE(thread_join,	NULL)
+	PHP_FE(thread_cleanup,	NULL)
 	PHP_FE(thread_kill,	NULL)
 	PHP_FE(thread_mutex_create,	NULL)
 	PHP_FE(thread_mutex_acquire,	NULL)
@@ -198,7 +213,7 @@ zend_module_entry threading_module_entry = {
 	PHP_RSHUTDOWN(threading),
 	PHP_MINFO(threading),
 #if ZEND_MODULE_API_NO >= 20010901
-	"0.1", /* Replace with version number for your extension */
+	"031", /* Replace with version number for your extension */
 #endif
 	STANDARD_MODULE_PROPERTIES
 };
@@ -222,6 +237,13 @@ static void php_thread_entry_dispose(php_thread_entry_t **entry TSRMLS_DC);
 
 static int php_thread_convert_object_ref(zval **retval, zval *src,
 		void ***prev_tsrm_ls TSRMLS_DC);
+
+#ifdef PHP_THREADING_QUESTIONABLE_VARS
+void zend_class_add_ref(zend_class_entry **ce)
+{
+	(*ce)->refcount++;
+}
+#endif
 
 /* {{{ php_thread_entry_addref() */
 static void php_thread_entry_addref(php_thread_entry_t *entry)
@@ -871,10 +893,7 @@ static void php_thread_executor_globals_reinit(zend_executor_globals *dest,
 	dest->current_module = src->current_module;
 }
 /* }}} */
-void zend_class_add_ref(zend_class_entry **ce)
-{
-	(*ce)->refcount++;
-}
+
 /* {{{ php_thread_compiler_globals_reinit() */
 static void php_thread_compiler_globals_reinit(zend_compiler_globals *dest,
 		zend_compiler_globals *src)
@@ -917,10 +936,14 @@ static int php_thread_netstream_data_copy_ctor(php_netstream_data_t *self,
 		const php_netstream_data_t *src, int persistent,
 		void ***prev_tsrm_ls TSRMLS_DC)
 {
+	int holder;
+	THR_DEBUG(("*self = *src assignment\n"));
 	*self = *src;
-	self->socket = _dup(self->socket);
-	if (self->socket == -1)
-		return FAILURE;
+	THR_DEBUG(("dupping self->socket\n"));
+	holder = dup(self->socket);
+	THR_DEBUG(("done dupping self->socket: %d\n", holder));
+	if (holder == 0)
+		self->socket = holder;
 	return SUCCESS;
 }
 /* }}} */
@@ -979,35 +1002,67 @@ static php_stream *php_thread_stream_basic_clone(
 }
 /* }}} */
 
-/* {{{ php_thread_stream_clone() *
+/* {{{ php_thread_stream_clone() */
 static php_stream *php_thread_stream_clone(
 		const php_stream *src, int persistent, void ***prev_tsrm_ls TSRMLS_DC)
 {
 	php_stream *retval = NULL;
-	php_netstream_data_t *data;
 
-	if (src->ops == &php_stream_socket_ops) {
-		retval = php_thread_stream_basic_clone(src, persistent, prev_tsrm_ls
+	if (strcmp(src->ops->label, "tcp_socket") == 0 || strcmp(src->ops->label, "udp_socket") == 0) {
+		int fd, tmp;
+		const char *persistent_id = NULL;
+		THR_DEBUG(("stream is php_stream_socket_ops: %s\n", src->ops->label));
+		if (_php_stream_cast((php_stream *)src,
+			PHP_STREAM_AS_SOCKETD, (void **)&fd, 1, prev_tsrm_ls) == FAILURE) {
+			THR_DEBUG(("_php_stream_cast failed\n"));
+			return NULL;
+		}
+		THR_DEBUG(("fd: %d\n", fd));
+		tmp = _dup(fd);
+		if (tmp == -1) {
+			THR_DEBUG(("_dup failed\n"));
+			//return NULL;
+		}
+		else {
+			fd = tmp;
+		}
+		if (persistent) {
+			persistent_id = php_thread_get_stream_persistent_id(src, prev_tsrm_ls);
+			if (!persistent_id) {
+				THR_DEBUG(("persisten_id failed\n"));
+				return NULL;
+			}
+		}
+		retval = php_stream_sock_open_from_socket(fd, persistent_id);
+		/*retval = php_thread_stream_basic_clone(src, persistent, prev_tsrm_ls
 				TSRMLS_CC);
 		if (!retval) {
 			return NULL;
 		}
+		THR_DEBUG(("pemalloc data\n"));
 		data = pemalloc(sizeof(*data), persistent);
+		THR_DEBUG(("done pemalloc data\n"));
 		if (!data) {
 			php_stream_free(retval, 0);
 			return NULL;
 		}
+		THR_DEBUG(("php_thread_netstream_data_copy_ctor\n"));
 		if (FAILURE == php_thread_netstream_data_copy_ctor(data,
 				(php_netstream_data_t*)src->abstract, persistent,
 				prev_tsrm_ls TSRMLS_CC)) {
+			THR_DEBUG(("php_thread_netstream_data_copy_ctor failed!\n"));
 			pefree(data, persistent);
-			php_stream_free(retval, 0);
-			return NULL;
+			THR_DEBUG(("pefree done!\n", src->ops->label));
+			// php_stream_free(retval, 0);
+			// THR_DEBUG(("free stream done!\n", src->ops->label));
+			// return NULL;
 		}
-		retval->abstract = data;
-	} else if (src->ops == &php_stream_stdio_ops) {
+		THR_DEBUG(("end php_thread_netstream_data_copy_ctor\n"));*/
+		//retval->abstract = data;
+	} else if (strcmp(src->ops->label, "STDIO") == 0) {
 		int fd;
 		const char *persistent_id = NULL;
+		THR_DEBUG(("stream is php_stream_stdio_ops: %s\n", src->ops->label));
 		if (_php_stream_cast((php_stream *)src,
 					PHP_STREAM_AS_FD, (void **)&fd, 0, prev_tsrm_ls) == FAILURE) {
 			return NULL;
@@ -1024,6 +1079,7 @@ static php_stream *php_thread_stream_clone(
 		}
 		retval = php_stream_fopen_from_fd(fd, src->mode, persistent_id);
 	}
+	THR_DEBUG(("Returning retval\n"));
 	return retval;
 }
 /* }}} */
@@ -1034,15 +1090,16 @@ static int php_thread_get_rsrc_desc(php_thread_rsrc_desc_t *retval, int le_id)
 	retval->id = le_id;
 	retval->persistent = 0;
 
+	THR_DEBUG(("le_id = %d %d %d\n", le_id, php_file_le_stream(), php_file_le_pstream()));
 	if (le_id == php_file_le_stream()) {
 		retval->size = sizeof(php_stream);
 		/* REMEMBER TO ENABLE */
-		// retval->clone = (php_thread_rsrc_clone_fn_t)php_thread_stream_clone;
+		retval->clone = (php_thread_rsrc_clone_fn_t)php_thread_stream_clone;
 	} else if (le_id == php_file_le_pstream()) {
 		retval->size = sizeof(php_stream);
 		retval->persistent = 1;
 		/* REMEMBER TO ENABLE */
-		// retval->clone = (php_thread_rsrc_clone_fn_t)php_thread_stream_clone;
+		retval->clone = (php_thread_rsrc_clone_fn_t)php_thread_stream_clone;
 	} else if (le_id == global_ctx.le_thread) {
 		retval->size = sizeof(php_thread_entry_t);
 		retval->persistent = 0;
@@ -1071,6 +1128,7 @@ static void *php_thread_clone_resource(const php_thread_rsrc_desc_t *desc,
 		void *ptr, void ***prev_tsrm_ls TSRMLS_DC)
 {
 	assert(desc->clone);
+	THR_DEBUG(("Cloning resource\n"));
 	return desc->clone(ptr, desc->persistent, prev_tsrm_ls TSRMLS_CC);
 }
 /* }}} */
@@ -1257,7 +1315,7 @@ static void *_php_thread_entry_func(php_thread_thread_param_t *param)
 	}
 	bail_if_fail(pthread_mutex_unlock(&param->ready_cond_mtx));
 
-	if (param->status) {
+	if (param->status != 0) {
 		goto out;
 	}
 
@@ -1436,13 +1494,17 @@ PHP_FUNCTION(thread_create)
 		bail_if_fail(pthread_cond_wait(&param.ready_cond, &param.ready_cond_mtx));
 		bail_if_fail(pthread_mutex_unlock(&param.ready_cond_mtx));
 
-		if (param.status) {
+		THR_DEBUG(("param.status = %d", param.status));
+		if (param.status != 0) {
 			current_entry->subthreads.n--;
 			pefree(param.entry, 1);
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Failed to spawn a new thread from param.status");
 			RETVAL_FALSE;
+			THR_DEBUG(("before if args\n"));
 			if (args) {
+				THR_DEBUG(("before efree\n"));
 				efree(args);
+				THR_DEBUG(("after efree\n"));
 			}
 			return;
 		}
@@ -1487,6 +1549,31 @@ PHP_FUNCTION(thread_resume)
 			global_ctx.le_thread);
 
 	php_thread_entry_resume(entry);
+}
+/* }}} */
+
+/* {{{ proto bool thread_cleanup(resource thread)
+   If finished cleans memory for a thread */
+PHP_FUNCTION(thread_cleanup)
+{
+	zval *zv;
+	php_thread_entry_t *entry;
+
+	if (FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &zv)) {
+		RETURN_FALSE;
+	}
+
+	ZEND_FETCH_RESOURCE(entry, php_thread_entry_t *, &zv, -1, "thread handle",
+			global_ctx.le_thread);
+
+	if(entry->finished) {
+		// php_thread_entry_t *current_entry = PHP_THREAD_SELF;
+		//current_entry->alive_subthread_count
+		pthread_detach(entry->t);
+		pefree(entry, 1);
+		RETURN_TRUE;
+	}
+	RETURN_FALSE;
 }
 /* }}} */
 

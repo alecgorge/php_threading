@@ -1,6 +1,10 @@
 PHP User-land threading support
 ===============================
 
+Warning
+-------
+Right now this extension leaks memory like it is a feature. Each thread consumes ~1-3mb of memory that is never released. Help fixing this would be nice!
+
 Note about Windows
 ------------------
 Don't forget to put deps/lib/pthreadVC2.dll in the same dir as your php.exe
@@ -38,7 +42,7 @@ trunk build on both Linux and Windows)::
 
 Samples
 -------
-Samples can be found at (note that 2 & 3 are broken right now, fixes wanted):  [http://github.com/alecgorge/php_threading/tree/master/source/samples/](http://github.com/alecgorge/php_threading/tree/master/source/samples/)
+Samples can be found at:  [http://github.com/alecgorge/php_threading/tree/master/source/samples/](http://github.com/alecgorge/php_threading/tree/master/source/samples/)
 
 Function list (these are your api docs presently)
 -------------------------------------------------
@@ -97,7 +101,7 @@ Current limitations
   * Thread handles
   * Mutexes
 
-* File handles and sockets are dup'licated on passage.
+* File handles are dup'licated on passage. Sockets aren't.
 
 How to build PHP with thrading support (on Windows)
 ---------------------------------------------------

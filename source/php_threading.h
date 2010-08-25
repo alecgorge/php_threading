@@ -24,6 +24,7 @@
 
 // if you define this debug messages will appear (mostly relating to thread polling)
 // #define PHP_THREADING_DEBUG
+#define PHP_THREADING_QUESTIONABLE_VARS
 
 extern zend_module_entry threading_module_entry;
 #define phpext_threading_ptr &threading_module_entry
@@ -46,6 +47,7 @@ PHP_FUNCTION(thread_create);
 PHP_FUNCTION(thread_suspend);
 PHP_FUNCTION(thread_resume);
 PHP_FUNCTION(thread_join);
+PHP_FUNCTION(thread_cleanup);
 PHP_FUNCTION(thread_kill);
 PHP_FUNCTION(thread_mutex_create);
 PHP_FUNCTION(thread_mutex_acquire);
