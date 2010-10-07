@@ -49,8 +49,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="&quot;H:\winbinder\php5.3.2\source\php\5.3.2\source\vc9\x86\php-5.3.2\TSRM&quot;;&quot;H:\winbinder\php5.3.2\source\php\5.3.2\source\vc9\x86\php-5.3.2\Zend&quot;;&quot;H:\winbinder\php5.3.2\source\php\5.3.2\source\vc9\x86\php-5.3.2\main&quot;;&quot;H:\winbinder\php5.3.2\source\php\5.3.2\source\vc9\x86\php-5.3.2\ext\ereg\regex&quot;;&quot;H:\winbinder\php5.3.2\source\php\5.3.2\source\vc9\x86\php-5.3.2\ext\standard&quot;;&quot;H:\winbinder\php5.3.2\source\php\5.3.2\source\vc9\x86\php-5.3.2\&quot;"
-				PreprocessorDefinitions="ZTS=1;_DEBUG;ZEND_DEBUG=0;PHP_WIN32;ZEND_WIN32;WIN32;_WINDOWS;_USRDLL;COMPILE_DL_winbinder;HAVE_winbinder=1"
+				AdditionalIncludeDirectories="..\deps\include\win32;..\deps\include\;..\deps\include\main;..\deps\include\Zend;..\deps\include\TSRM;&quot;..\deps\include\pthreads-win32\&quot;;..\deps\include\ext\standard"
+				PreprocessorDefinitions="COMPILE_DL_THREADING;_USE_32BIT_TIME_T=1;ZTS=1;_WINDOWS;_DEBUG;ZEND_DEBUG=0;ZEND_WIN32=1;PHP_WIN32=1;WIN32"
 				StringPooling="true"
 				MinimalRebuild="false"
 				BasicRuntimeChecks="0"
@@ -76,11 +76,11 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="H:\winbinder\php5.3.2\source\php\5.3.2\php5ts.lib"
-				OutputFile="compiled/php_winbinder_for_php_5.3.dll"
+				AdditionalDependencies="..\deps\lib\php5ts.lib ..\deps\lib\pthreadVC2.lib"
+				OutputFile="$(OutDir)\php_threading.dll"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
-				AdditionalLibraryDirectories="&quot;H:\winbinder\php5.3.2\source\php\5.3.2&quot;"
+				AdditionalLibraryDirectories="..\deps\lib\"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\Debug/php_winbinder.pdb"
 				RandomizedBaseAddress="1"

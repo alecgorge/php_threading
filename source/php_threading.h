@@ -23,7 +23,11 @@
 #define PHP_THREADING_H
 
 // if you define this debug messages will appear (mostly relating to thread polling)
-// #define PHP_THREADING_DEBUG
+//#if _DEBUG
+#	define PHP_THREADING_DEBUG
+// #	include <vld.h>
+//#endif
+
 #define PHP_THREADING_QUESTIONABLE_VARS
 
 extern zend_module_entry threading_module_entry;

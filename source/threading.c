@@ -1494,7 +1494,7 @@ PHP_FUNCTION(thread_create)
 		bail_if_fail(pthread_cond_wait(&param.ready_cond, &param.ready_cond_mtx));
 		bail_if_fail(pthread_mutex_unlock(&param.ready_cond_mtx));
 
-		THR_DEBUG(("param.status = %d", param.status));
+		THR_DEBUG(("param.status = %d\n", param.status));
 		if (param.status != 0) {
 			current_entry->subthreads.n--;
 			pefree(param.entry, 1);
@@ -1566,10 +1566,10 @@ PHP_FUNCTION(thread_cleanup)
 	ZEND_FETCH_RESOURCE(entry, php_thread_entry_t *, &zv, -1, "thread handle",
 			global_ctx.le_thread);
 
-	if(entry->finished) {
+	if(entry->finished == 1) {
 		// php_thread_entry_t *current_entry = PHP_THREAD_SELF;
 		//current_entry->alive_subthread_count
-		pthread_detach(entry->t);
+		//pthread_detach(entry->t);
 		pefree(entry, 1);
 		RETURN_TRUE;
 	}
